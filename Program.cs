@@ -1,10 +1,13 @@
-using System.Text;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.Extensions.Options;
+using Microsoft.IdentityModel.Tokens;
+using Microsoft.OpenApi;
 using PokeAPIService.Clients;
 using PokeAPIService.Models.Options;
 using PokeAPIService.Services;
 using Polly;
 using Polly.Extensions.Http;
+using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -19,7 +22,59 @@ builder.Services.AddMemoryCache();
 builder.Services.AddEndpointsApiExplorer();
 
 builder.Services.AddSwaggerGen();
+builder.Services.AddSwaggerGen(c =>
+{
+    // Add JWT Bearer definition to Swagger
+    c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
+    {
+        Description = "Enter 'Bearer {token}' (without quotes). Example: \"Bearer eyJhbGci...\"",
+        Name = "Authorization",
+        In = ParameterLocation.Header,
+        Type = SecuritySchemeType.ApiKey,
+        Scheme = "Bearer",
+        BearerFormat = "JWT"
+    });
 
+    // Require the Bearer scheme for all endpoints (can be adjusted per-controller with attributes)
+    c.AddSecurityRequirement(new OpenApiSecurityRequirement
+    {
+        {
+            new OpenApiSecurityScheme
+            {
+                Reference = new OpenApiReference
+                {
+                    Type = ReferenceType.SecurityScheme,
+                    Id = "Bearer"
+                },
+                Scheme = "Bearer",
+                Name = "Authorization",
+                In = ParameterLocation.Header
+            },
+            new List<string>()
+        }
+    });
+});
+builder.Services
+    .AddOptions<JwtBearerOptions>(JwtBearerDefaults.AuthenticationScheme)
+    .Configure<IOptions<JwtOptions>>((options, jwt) =>
+    {
+        var settings = jwt.Value;
+
+        options.TokenValidationParameters = new TokenValidationParameters
+        {
+            ValidateIssuer = true,
+            ValidateAudience = true,
+            ValidateLifetime = true,
+            ValidateIssuerSigningKey = true,
+
+            ValidIssuer = settings.Issuer,
+            ValidAudience = settings.Audience,
+            IssuerSigningKey = new SymmetricSecurityKey(
+                Encoding.UTF8.GetBytes(settings.SigningKey))
+        };
+    });
+
+builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme).AddJwtBearer();
 builder.Services.AddAuthorization();
 
 builder.Services.AddHttpClient<IPokeApiClient, PokeApiClient>((sp, client) =>
@@ -48,8 +103,12 @@ static IAsyncPolicy<HttpResponseMessage> GetCircuitBreakerPolicy()
         );
 }
 
-builder.Services.AddScoped<IPokemonService, PokemonService>();
+builder.Services.AddSingleton<IRefreshTokenStore, RefreshTokenStore>();
+builder.Services.AddScoped<ITokenService, TokenService>();
+builder.Services.Configure<JwtOptions>(
+    builder.Configuration.GetSection("Jwt"));
 
+builder.Services.AddScoped<IPokemonService, PokemonService>();
 builder.Services.Configure<PokeApiOptions>(
     builder.Configuration.GetSection("PokeApi"));
 
