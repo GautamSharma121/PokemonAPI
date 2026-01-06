@@ -1,8 +1,9 @@
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
-using Microsoft.OpenApi;
+using Microsoft.OpenApi.Models;
 using PokeAPIService.Clients;
+using PokeAPIService.Middleware;
 using PokeAPIService.Models.Options;
 using PokeAPIService.Services;
 using Polly;
@@ -12,30 +13,25 @@ using System.Text;
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
-
 builder.Services.AddControllers();
-
 builder.Services.AddMemoryCache();
 
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
-
 builder.Services.AddEndpointsApiExplorer();
 
-builder.Services.AddSwaggerGen();
 builder.Services.AddSwaggerGen(c =>
 {
-    // Add JWT Bearer definition to Swagger
+    // Add JWT Bearer definition to Swagger (HTTP bearer so UI accepts only the raw token)
     c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
     {
-        Description = "Enter 'Bearer {token}' (without quotes). Example: \"Bearer eyJhbGci...\"",
+        Description = "JWT Authorization header using the Bearer scheme. Enter only the token in the value field.",
         Name = "Authorization",
         In = ParameterLocation.Header,
-        Type = SecuritySchemeType.ApiKey,
-        Scheme = "Bearer",
+        Type = SecuritySchemeType.Http,
+        Scheme = "bearer",
         BearerFormat = "JWT"
     });
 
-    // Require the Bearer scheme for all endpoints (can be adjusted per-controller with attributes)
     c.AddSecurityRequirement(new OpenApiSecurityRequirement
     {
         {
@@ -46,7 +42,7 @@ builder.Services.AddSwaggerGen(c =>
                     Type = ReferenceType.SecurityScheme,
                     Id = "Bearer"
                 },
-                Scheme = "Bearer",
+                Scheme = "bearer",
                 Name = "Authorization",
                 In = ParameterLocation.Header
             },
@@ -54,6 +50,7 @@ builder.Services.AddSwaggerGen(c =>
         }
     });
 });
+
 builder.Services
     .AddOptions<JwtBearerOptions>(JwtBearerDefaults.AuthenticationScheme)
     .Configure<IOptions<JwtOptions>>((options, jwt) =>
@@ -88,9 +85,9 @@ static IAsyncPolicy<HttpResponseMessage> GetRetryPolicy()
 {
     return HttpPolicyExtensions.HandleTransientHttpError()
         .WaitAndRetryAsync(
-        retryCount: 3,
-        sleepDurationProvider: retryAttempt => TimeSpan.FromSeconds(Math.Pow(2, retryAttempt)),
-        onRetry: (outcome, timespan, retryAttempt, context) => { Console.WriteLine("retry"); }
+            retryCount: 3,
+            sleepDurationProvider: retryAttempt => TimeSpan.FromSeconds(Math.Pow(2, retryAttempt)),
+            onRetry: (outcome, timespan, retryAttempt, context) => { Console.WriteLine("retry"); }
         );
 }
 
@@ -100,7 +97,7 @@ static IAsyncPolicy<HttpResponseMessage> GetCircuitBreakerPolicy()
         handledEventsAllowedBeforeBreaking: 5, durationOfBreak: TimeSpan.FromSeconds(30),
         onBreak: (outcome, timespan) => { Console.WriteLine("break"); },
         onReset: () => { Console.WriteLine("reset"); }
-        );
+    );
 }
 
 builder.Services.AddSingleton<IRefreshTokenStore, RefreshTokenStore>();
@@ -115,7 +112,6 @@ builder.Services.Configure<PokeApiOptions>(
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.
-
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
@@ -123,10 +119,8 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
-
-
+app.UseMiddleware<ExceptionHandlingMiddleware>();
 app.UseAuthentication();
-
 app.UseAuthorization();
 
 app.MapControllers();

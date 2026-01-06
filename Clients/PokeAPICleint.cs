@@ -1,6 +1,7 @@
 
-using System.Net;
+using PokeAPIService.Exceptions;
 using PokeAPIService.Models;
+using System.Net;
 
 namespace PokeAPIService.Clients;
 
@@ -25,19 +26,19 @@ public class PokeApiClient : IPokeApiClient
 
     public async Task<PokemonDetails?> GetPokemonDetailsByUrlAsync(string url)
     {
-        _logger.LogInformation("Calling PokeAPI for Pokemon details {url}", url);
+        _logger.LogInformation("Calling GetPokemonDetailsByUrlAsync for Pokemon details {url}", url);
         return await _httpClient.GetFromJsonAsync<PokemonDetails>(url);
     }
 
     public async Task<PokemonDetails?> GetPokemonDetailsAsync(string idOrName)
     {
-        _logger.LogInformation("Calling PokeAPI for Pokemon {Pokemon}", idOrName);
+        _logger.LogInformation("Calling GetPokemonDetailsAsync for Pokemon {Pokemon}", idOrName);
         var response = await _httpClient.GetAsync($"pokemon/{idOrName}");
 
         if (response.StatusCode == HttpStatusCode.NotFound)
         {
-            _logger.LogWarning("Pokemon {Pokemon} not found in PokeAPI", idOrName);
-            throw new Exception($"Pokemon {idOrName} not found");
+            _logger.LogWarning("Pokemon {Pokemon} not found ", idOrName);
+            throw new NotFoundException($"Pokemon {idOrName} not found");
         }
         response.EnsureSuccessStatusCode();
 
