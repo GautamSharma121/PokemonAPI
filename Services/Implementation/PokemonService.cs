@@ -17,20 +17,21 @@ public class PokemonService : IPokemonService
         _logger = logger;
     }
 
+   // Fetching list of pokemons
     public async Task<List<PokemonDto>> GetPokemonListAsync(int page, int pageSize)
     {
         _logger.LogInformation("Fetching Pokemon list. Page={Page}, PageSize={PageSize}", page, pageSize);
 
-        var cacheKey = $"pokemon:list:page:{page}:size:{pageSize}";
+        var cacheKey = $"pokemonRecords:list:page:{page}:size:{pageSize}";
 
         if (_cache.TryGetValue(cacheKey, out List<PokemonDto>? cached))
         {
-            _logger.LogInformation("Cache hit for key {CacheKey}", cacheKey);
+            _logger.LogInformation("Getting cachefor key {CacheKey}", cacheKey);
             return cached;
         }
-        _logger.LogInformation("Cache miss for key {CacheKey}", cacheKey);
-        var offset = (page - 1) * pageSize;
-        var pokemonListResponse = await _pokeClient.GetPokemonListAsync(pageSize, offset);
+        _logger.LogInformation("Cache not found for key {CacheKey}", cacheKey);
+        var skipRecord = (page - 1) * pageSize;
+        var pokemonListResponse = await _pokeClient.GetPokemonListAsync(pageSize, skipRecord);
         List<PokemonDto> pokemonListDto = [];
         if (pokemonListResponse is not null)
         {
@@ -63,9 +64,11 @@ public class PokemonService : IPokemonService
         return pokemonListDto;
     }
 
-    public async Task<PokemonSearchDto?> SearchPokemonAsync(string idOrName)
+   // Searching Pokemon by name
+    public async Task<PokemonSearchDto?> SearchPokemonAsync(string searchValue)
     {
-        var details = await _pokeClient.GetPokemonDetailsAsync(idOrName);
+          _logger.LogInformation($"Searching pokemon by name {searchValue}");
+        var details = await _pokeClient.GetPokemonDetailsAsync(searchValue);
         PokemonSearchDto? pokemonSearchDto = null;
         if (details is not null)
         {

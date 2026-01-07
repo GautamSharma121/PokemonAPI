@@ -2,7 +2,7 @@ using System.Collections.Concurrent;
 
 public class RefreshTokenStore : IRefreshTokenStore
 {
-    private static readonly ConcurrentDictionary<string, List<RefreshToken>> _store = new();
+    private static readonly ConcurrentDictionary<string, List<RefreshToken>> _store = new(); // thread safe
 
     public void Save(string userId, RefreshToken token)
     {

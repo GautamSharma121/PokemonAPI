@@ -16,6 +16,7 @@ public class TokenService : ITokenService
         _options = options.Value;
     }
 
+   // Creating access token
     public string CreateAccessToken(string userId)
     {
         var claims = new[]
@@ -39,6 +40,7 @@ public class TokenService : ITokenService
         return new JwtSecurityTokenHandler().WriteToken(token);
     }
 
+    // Creating refresh  token
     public RefreshToken CreateRefreshToken()
     {
         return new RefreshToken

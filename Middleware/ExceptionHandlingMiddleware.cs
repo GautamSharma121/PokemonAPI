@@ -16,7 +16,7 @@ public class ExceptionHandlingMiddleware
         _next = next;
         _logger = logger;
     }
-
+    // Global exception handling
     public async Task InvokeAsync(HttpContext context)
     {
         try

@@ -30,12 +30,12 @@ namespace PokemonAPI.Controllers
         }
 
         [HttpGet("search")]
-        public async Task<IActionResult> Search([FromQuery] string idOrName)
+        public async Task<IActionResult> Search([FromQuery] string searchValue)
         {
-            if (string.IsNullOrWhiteSpace(idOrName))
-                return BadRequest("idOrName is required");
+            if (string.IsNullOrWhiteSpace(searchValue))
+                return BadRequest("searchValue is required");
 
-            var result = await _pokemonService.SearchPokemonAsync(idOrName);
+            var result = await _pokemonService.SearchPokemonAsync(searchValue);
             return Ok(result);
         }
     }
